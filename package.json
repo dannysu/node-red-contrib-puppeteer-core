@@ -1,0 +1,22 @@
+{
+  "name": "node-red-contrib-puppeteer-core",
+  "version": "0.0.1",
+  "description": "A Node-RED node for using puppeteer",
+  "license": "Apache 2.0",
+  "keywords": [
+    "node-red",
+    "puppeteer",
+    "chrome",
+    "chromium"
+  ],
+  "node-red": {
+    "nodes": {
+      "puppeteer": "puppeteer.js"
+    }
+  },
+  "author": {
+    "name": "Danny Su",
+    "email": "contact@dannysu.com"
+  },
+  "scripts": {}
+}
