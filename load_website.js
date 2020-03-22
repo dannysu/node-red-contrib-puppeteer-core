@@ -29,6 +29,8 @@ module.exports = function(RED) {
             const additionalDelayMs = parseInt(node.additionalDelayMs || msg.additionalDelayMs || '-1');
             const additionalSelectorWait = node.additionalSelectorWait || msg.additionalSelectorWait;
             (async () => {
+                await node.config.takeInstance();
+
                 const browser = await puppeteer.launch({
                     executablePath: node.config.executablePath,
                 });
@@ -54,7 +56,7 @@ module.exports = function(RED) {
                 if (done) {
                     done();
                 }
-            })();
+            })().finally(_ => node.config.releaseInstance());
         });
     }
 
