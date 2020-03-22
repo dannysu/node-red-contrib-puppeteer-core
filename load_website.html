@@ -1,0 +1,72 @@
+<script type="text/javascript">
+    RED.nodes.registerType('pptr load website', {
+        category: 'advanced',
+        color: '#60E4C3',
+        defaults: {
+            name: { value: '' },
+            executablePath: {
+                value: '',
+                required: true,
+                validate: function(v) {
+                    var fs = require('fs');
+                    return fs.existsSync(v);
+                }
+            },
+            url: { value: '' },
+            additionalDelayMs: { value: '0', validate: RED.validators.regex(/[0-9]+/) },
+            additionalSelectorWait: { value: '' }
+        },
+        inputs:1,
+        outputs:1,
+        icon: 'font-awesome/fa-globe',
+        label: function() {
+            return this.name || 'load website';
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="pptr load website">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-executablePath"><i class="fa fa-chrome"></i> Executable</label>
+        <input type="text" id="node-input-executablePath" placeholder="Chrome or Chromium Executable Path">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-url"><i class="fa fa-globe"></i> URL</label>
+        <input type="text" id="node-input-url" placeholder="http://">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-additionalDelayMs">Delay (ms)</label>
+        <input type="text" id="node-input-additionalDelayMs" placeholder="Delay after page loads in milliseconds">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-additionalSelectorWait">CSS Selector</label>
+        <input type="text" id="node-input-additionalSelectorWait" placeholder="Wait for CSS selector to be present after page loads">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="pptr load website">
+    <p>Use puppeteer to control Chrome or Chromium to load a website and optionally wait for certain things to load.</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">url <span class="property-type">string</span></dt>
+        <dd>If not configured in the node, this optional property sets the url that'll be loaded.</dd>
+        <dt class="optional">additionalDelayMs <span class="property-type">number</span></dt>
+        <dd>If not configured in the node, this optional property sets an additional time delay (in milliseconds) after a page loads.</dd>
+        <dt class="optional">additionalSelectorWait <span class="property-type">string</span></dt>
+        <dd>If not configured in the node, this optional property causes an additional wait until the given CSS selector becomes present on the page.</dd>
+    </dl>
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">string<span></dt>
+        <dd>The HTML of the loaded page.</dd>
+    </dl>
+</script>
