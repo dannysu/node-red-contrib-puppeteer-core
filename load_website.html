@@ -4,14 +4,7 @@
         color: '#60E4C3',
         defaults: {
             name: { value: '' },
-            executablePath: {
-                value: '',
-                required: true,
-                validate: function(v) {
-                    var fs = require('fs');
-                    return fs.existsSync(v);
-                }
-            },
+            config: { value: '', type: 'pptr config' },
             url: { value: '' },
             additionalDelayMs: { value: '0', validate: RED.validators.regex(/[0-9]+/) },
             additionalSelectorWait: { value: '' }
@@ -32,8 +25,8 @@
     </div>
 
     <div class="form-row">
-        <label for="node-input-executablePath"><i class="fa fa-chrome"></i> Executable</label>
-        <input type="text" id="node-input-executablePath" placeholder="Chrome or Chromium Executable Path">
+        <label for="node-input-config"><i class="fa fa-chrome"></i> Chrome</label>
+        <input type="text" id="node-input-config">
     </div>
 
     <div class="form-row">

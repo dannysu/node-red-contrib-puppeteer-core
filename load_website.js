@@ -8,7 +8,7 @@ module.exports = function(RED) {
 
         const node = this;
         node.url = n.url;
-        node.executablePath = n.executablePath;
+        node.config = RED.nodes.getNode(n.config);
         node.additionalDelayMs = n.additionalDelayMs;
         node.additionalSelectorWait = n.additionalSelectorWait;
 
@@ -30,7 +30,7 @@ module.exports = function(RED) {
             const additionalSelectorWait = node.additionalSelectorWait || msg.additionalSelectorWait;
             (async () => {
                 const browser = await puppeteer.launch({
-                    executablePath: node.executablePath,
+                    executablePath: node.config.executablePath,
                 });
                 const page = await browser.newPage();
                 const waitUntil = ['load'];

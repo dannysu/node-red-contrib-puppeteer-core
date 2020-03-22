@@ -14,6 +14,7 @@
   ],
   "node-red": {
     "nodes": {
+      "pptr config": "config.js",
       "pptr load website": "load_website.js"
     }
   },
