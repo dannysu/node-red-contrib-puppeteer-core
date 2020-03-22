@@ -33,6 +33,10 @@ module.exports = function(RED) {
 
                 const browser = await puppeteer.launch({
                     executablePath: node.config.executablePath,
+                    defaultViewport: {
+                        width: 1920,
+                        height: 1080
+                    }
                 });
                 const page = await browser.newPage();
                 const waitUntil = ['load'];
