@@ -15,6 +15,7 @@
   "node-red": {
     "nodes": {
       "pptr config": "config.js",
+      "puppeteer": "puppeteer.js",
       "pptr load website": "load_website.js"
     }
   },

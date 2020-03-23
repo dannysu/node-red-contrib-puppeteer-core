@@ -13,17 +13,11 @@ module.exports = function(RED) {
         node.additionalSelectorWait = n.additionalSelectorWait;
 
         node.on('input', function(msg, send, done) {
-            // For backwards compatibility
-            send = send || function() { node.send.apply(node, arguments); };
-
             const url = node.url || msg.url;
             if (!url) {
                 const err = new Error('A URL is required');
-                if (done) {
-                    done(err);
-                } else {
-                    node.error(err);
-                }
+                done(err);
+                return;
             }
 
             const additionalDelayMs = parseInt(node.additionalDelayMs || msg.additionalDelayMs || '-1');
@@ -57,9 +51,7 @@ module.exports = function(RED) {
                 await browser.close();
 
                 // Signal to Node-RED that handling for the msg is done
-                if (done) {
-                    done();
-                }
+                done();
             })().finally(_ => node.config.releaseInstance());
         });
     }
