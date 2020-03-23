@@ -216,6 +216,8 @@ module.exports = function(RED) {
             node.error(err);
         }
 
+        let openedBrowser = null;
+
         node.on('input', function(msg, send, done) {
             const url = node.url || msg.url;
             if (!url) {
@@ -241,6 +243,7 @@ module.exports = function(RED) {
                         height: 1080
                     }
                 });
+                openedBrowser = browser;
                 const page = await browser.newPage();
                 const waitUntil = ['load'];
                 await page.goto(url, { waitUntil: waitUntil });
@@ -250,6 +253,7 @@ module.exports = function(RED) {
                 context.page = page;
                 context.done = function(err) {
                     browser.close().finally(() => {
+                        openedBrowser = null;
                         done(err);
                         resolveFn();
                     });
@@ -299,6 +303,14 @@ module.exports = function(RED) {
 
                 await waitForExecution();
             })().finally(_ => node.config.releaseInstance());
+        });
+
+        node.on('close', function(done) {
+            if (openedBrowser) {
+                openedBrowser.close().finally(done);
+            } else {
+                done();
+            }
         });
     }
 

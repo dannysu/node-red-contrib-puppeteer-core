@@ -12,6 +12,8 @@ module.exports = function(RED) {
         node.additionalDelayMs = n.additionalDelayMs;
         node.additionalSelectorWait = n.additionalSelectorWait;
 
+        let openedBrowser = null;
+
         node.on('input', function(msg, send, done) {
             const url = node.url || msg.url;
             if (!url) {
@@ -32,6 +34,7 @@ module.exports = function(RED) {
                         height: 1080
                     }
                 });
+                openedBrowser = browser;
                 const page = await browser.newPage();
                 const waitUntil = ['load'];
                 await page.goto(url, { waitUntil: waitUntil });
@@ -49,10 +52,19 @@ module.exports = function(RED) {
                 });
 
                 await browser.close();
+                openedBrowser = null;
 
                 // Signal to Node-RED that handling for the msg is done
                 done();
             })().finally(_ => node.config.releaseInstance());
+        });
+
+        node.on('close', function(done) {
+            if (openedBrowser) {
+                openedBrowser.close().finally(done);
+            } else {
+                done();
+            }
         });
     }
 
