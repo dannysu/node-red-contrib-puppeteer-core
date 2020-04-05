@@ -5,11 +5,7 @@
             name: { value: '' },
             executablePath: {
                 value: '',
-                required: true,
-                validate: function(v) {
-                    var fs = require('fs');
-                    return fs.existsSync(v);
-                }
+                required: true
             },
             semaphoreCount: { value: '1' }
         },
