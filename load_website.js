@@ -47,6 +47,10 @@ module.exports = function(RED) {
                 openedBrowser = browser;
                 const page = await browser.newPage();
                 const waitUntil = ['load'];
+                let userAgent = await browser.userAgent();
+                userAgent = userAgent.replace(' Raspbian', '');
+                userAgent = userAgent.replace('HeadlessChrome', 'Chrome');
+                page.setUserAgent(userAgent);
                 await page.goto(url, { waitUntil: waitUntil });
                 if (additionalDelayMs >= 1) {
                     await page.waitFor(additionalDelayMs);
