@@ -57,9 +57,8 @@ module.exports = function(RED) {
                 const html = await page.content();
 
                 // Produce output for the node
-                send({
-                    payload: html
-                });
+                msg.payload = html;
+                send(msg);
 
                 await browser.close();
                 openedBrowser = null;
