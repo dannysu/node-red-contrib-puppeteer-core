@@ -7,6 +7,13 @@
             config: { value: '', type: 'pptr config' },
             url: { value: '' },
             func: { value: "\nreturn msg;" },
+            maxDuration: {
+                value: '15000',
+                validate: function(v) {
+                    const duration = parseInt(v);
+                    return duration > 0;
+                }
+            },
             outputs: { value: '1' },
             noerr: { value: 0, required: true, validate: function(v) { return !v; } }
         },
@@ -116,6 +123,11 @@
     <div class="form-row">
         <label for="node-input-url"><i class="fa fa-globe"></i> URL</label>
         <input type="text" id="node-input-url" placeholder="http://">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-maxDuration">Max Duration</label>
+        <input type="text" id="node-input-maxDuration" placeholder="Maximum amount of time in milliseconds the node is allowed to run">
     </div>
 
     <div class="form-row" style="margin-bottom: 0px;">

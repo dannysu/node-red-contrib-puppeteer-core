@@ -49,6 +49,7 @@ module.exports = function(RED) {
         node.url = n.url;
         node.config = RED.nodes.getNode(n.config);
         node.func = n.func;
+        node.maxDuration = parseInt(n.maxDuration || '15000');
 
         const functionText = "(async (msg, page, __send__, __done__) => {\n" +
                              "    const __msgid__ = msg._msgid;\n" +
@@ -218,7 +219,7 @@ module.exports = function(RED) {
 
         let openedBrowser = null;
 
-        node.on('input', function(msg, send, done) {
+        node.on('input', function(msg, send, doneFn) {
             const url = node.url || msg.url;
             if (!url) {
                 const err = new Error('A URL is required');
@@ -227,9 +228,33 @@ module.exports = function(RED) {
             }
 
             let resolveFn = null;
+
+            let browserClosePromise = null;
+            let waitForExecutionTimer = null;
+            function done(err) {
+                if (waitForExecutionTimer) {
+                    clearTimeout(waitForExecutionTimer);
+                    waitForExecutionTimer = null;
+                }
+                if (openedBrowser) {
+                    browserClosePromise = openedBrowser.close().finally(() => {
+                        openedBrowser = null;
+                        doneFn(err);
+                        if (resolveFn) {
+                            resolveFn();
+                        }
+                    });
+                }
+            }
+
             function waitForExecution() {
-                return new Promise(resolve => {
+                return new Promise((resolve, reject) => {
                     resolveFn = resolve;
+                    waitForExecutionTimer = setTimeout(function() {
+                        waitForExecutionTimer = null;
+                        resolveFn = null;
+                        reject(new Error('timed out'));
+                    }, node.maxDuration);
                 });
             }
 
@@ -251,16 +276,11 @@ module.exports = function(RED) {
                 context.msg = msg;
                 context.send = send;
                 context.page = page;
-                context.done = function(err) {
-                    browser.close().finally(() => {
-                        openedBrowser = null;
-                        done(err);
-                        resolveFn();
-                    });
-                };
+                context.done = done;
 
                 try {
                     node.script.runInContext(context);
+                    await waitForExecution();
                 } catch(err) {
                     if ((typeof err === "object") && err.hasOwnProperty("stack")) {
                         //remove unwanted part
@@ -301,7 +321,7 @@ module.exports = function(RED) {
                     }
                 }
 
-                await waitForExecution();
+                await browserClosePromise;
             })().finally(_ => node.config.releaseInstance());
         });
 
