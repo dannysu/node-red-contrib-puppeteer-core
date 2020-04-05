@@ -51,6 +51,10 @@ module.exports = function(RED) {
         node.func = n.func;
         node.maxDuration = parseInt(n.maxDuration || '15000');
 
+        if (n.userDataDir) {
+            node.userDataDir = RED.util.evaluateNodeProperty(n.userDataDir.value, n.userDataDir.input_type, node);
+        }
+
         const functionText = "(async (msg, page, __send__, __done__) => {\n" +
                              "    const __msgid__ = msg._msgid;\n" +
                              "    const node = {\n" +
@@ -227,6 +231,8 @@ module.exports = function(RED) {
                 return;
             }
 
+            const userDataDir = node.userDataDir || msg.userDataDir;
+
             let resolveFn = null;
 
             let browserClosePromise = null;
@@ -261,13 +267,18 @@ module.exports = function(RED) {
             (async () => {
                 await node.config.takeInstance();
 
-                const browser = await puppeteer.launch({
+                const launchConfig = {
                     executablePath: node.config.executablePath,
                     defaultViewport: {
                         width: 1920,
                         height: 1080
                     }
-                });
+                };
+                if (node.userDataDir) {
+                    launchConfig.userDataDir = userDataDir;
+                }
+
+                const browser = await puppeteer.launch(launchConfig);
                 openedBrowser = browser;
                 const page = await browser.newPage();
                 const waitUntil = ['load'];

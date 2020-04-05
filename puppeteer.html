@@ -19,6 +19,10 @@
                     return duration > 0;
                 }
             },
+            userDataDir: {
+                value: '',
+                input_type: 'str'
+            },
             outputs: { value: '1' },
             noerr: { value: 0, required: true, validate: function(v) { return !v; } }
         },
@@ -81,6 +85,12 @@
                     }
                 })
             });
+
+            var userDataDirElem = $('#userDataDir').typedInput({ default: 'str', types: [ 'str', 'env' ] });
+            if (this.userDataDir) {
+                userDataDirElem.typedInput('value', this.userDataDir.value);
+                userDataDirElem.typedInput('type', this.userDataDir.input_type);
+            }
         },
         oneditsave: function() {
             var annot = this.editor.getSession().getAnnotations();
@@ -95,6 +105,12 @@
             $("#node-input-func").val(this.editor.getValue());
             this.editor.destroy();
             delete this.editor;
+
+            var userDataDirElem = $('#userDataDir');
+            this.userDataDir = {
+                value: userDataDirElem.typedInput('value'),
+                input_type: userDataDirElem.typedInput('type')
+            };
         },
         oneditcancel: function() {
             this.editor.destroy();
@@ -135,6 +151,11 @@
         <input type="text" id="node-input-maxDuration" placeholder="Maximum amount of time in milliseconds the node is allowed to run">
     </div>
 
+    <div class="form-row">
+        <label for="userDataDir">User Data Dir</label>
+        <input type="text" id="userDataDir" placeholder="optional, but use full path if set">
+    </div>
+
     <div class="form-row" style="margin-bottom: 0px;">
         <label for="node-input-func"><i class="fa fa-wrench"></i> Code</label>
         <input type="hidden" id="node-input-func" autofocus="autofocus">
@@ -158,5 +179,7 @@
     <dl class="message-properties">
         <dt class="optional">url <span class="property-type">string</span></dt>
         <dd>If not configured in the node, this optional property sets the url that'll be loaded.</dd>
+        <dt class="optional">userDataDir <span class="property-type">string</span></dt>
+        <dd>If not configured in the node, this optional property sets the userDataDir that'll be used.</dd>
     </dl>
 </script>

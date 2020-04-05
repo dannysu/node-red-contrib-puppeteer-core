@@ -12,6 +12,10 @@ module.exports = function(RED) {
         node.additionalDelayMs = n.additionalDelayMs;
         node.additionalSelectorWait = n.additionalSelectorWait;
 
+        if (n.userDataDir) {
+            node.userDataDir = RED.util.evaluateNodeProperty(n.userDataDir.value, n.userDataDir.input_type, node);
+        }
+
         let openedBrowser = null;
 
         node.on('input', function(msg, send, done) {
@@ -24,16 +28,22 @@ module.exports = function(RED) {
 
             const additionalDelayMs = parseInt(node.additionalDelayMs || msg.additionalDelayMs || '-1');
             const additionalSelectorWait = node.additionalSelectorWait || msg.additionalSelectorWait;
+            const userDataDir = node.userDataDir || msg.userDataDir;
             (async () => {
                 await node.config.takeInstance();
 
-                const browser = await puppeteer.launch({
+                const launchConfig = {
                     executablePath: node.config.executablePath,
                     defaultViewport: {
                         width: 1920,
                         height: 1080
                     }
-                });
+                };
+                if (node.userDataDir) {
+                    launchConfig.userDataDir = userDataDir;
+                }
+
+                const browser = await puppeteer.launch(launchConfig);
                 openedBrowser = browser;
                 const page = await browser.newPage();
                 const waitUntil = ['load'];

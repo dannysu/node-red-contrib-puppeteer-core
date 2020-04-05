@@ -7,13 +7,31 @@
             config: { value: '', type: 'pptr config' },
             url: { value: '' },
             additionalDelayMs: { value: '0', validate: RED.validators.regex(/[0-9]+/) },
-            additionalSelectorWait: { value: '' }
+            additionalSelectorWait: { value: '' },
+            userDataDir: {
+                value: '',
+                input_type: 'str'
+            }
         },
         inputs:1,
         outputs:1,
         icon: 'font-awesome/fa-globe',
         label: function() {
             return this.name || 'load website';
+        },
+        oneditprepare: function() {
+            var userDataDirElem = $('#userDataDir').typedInput({ default: 'str', types: [ 'str', 'env' ] });
+            if (this.userDataDir) {
+                userDataDirElem.typedInput('value', this.userDataDir.value);
+                userDataDirElem.typedInput('type', this.userDataDir.input_type);
+            }
+        },
+        oneditsave: function() {
+            var userDataDirElem = $('#userDataDir');
+            this.userDataDir = {
+                value: userDataDirElem.typedInput('value'),
+                input_type: userDataDirElem.typedInput('type')
+            };
         }
     });
 </script>
@@ -43,6 +61,11 @@
         <label for="node-input-additionalSelectorWait">CSS Selector</label>
         <input type="text" id="node-input-additionalSelectorWait" placeholder="Wait for CSS selector to be present after page loads">
     </div>
+
+    <div class="form-row">
+        <label for="userDataDir">User Data Dir</label>
+        <input type="text" id="userDataDir" placeholder="optional, but use full path if set">
+    </div>
 </script>
 
 <script type="text/x-red" data-help-name="pptr load website">
@@ -56,6 +79,8 @@
         <dd>If not configured in the node, this optional property sets an additional time delay (in milliseconds) after a page loads.</dd>
         <dt class="optional">additionalSelectorWait <span class="property-type">string</span></dt>
         <dd>If not configured in the node, this optional property causes an additional wait until the given CSS selector becomes present on the page.</dd>
+        <dt class="optional">userDataDir <span class="property-type">string</span></dt>
+        <dd>If not configured in the node, this optional property sets the userDataDir that'll be used.</dd>
     </dl>
     <h3>Outputs</h3>
     <dl class="message-properties">
