@@ -6,7 +6,12 @@
             name: { value: '' },
             config: { value: '', type: 'pptr config' },
             url: { value: '' },
-            func: { value: "\nreturn msg;" },
+            func: {
+                value: "\n// Use send() to produce messages for downstream" +
+                       "\n// send({ payload: '' });" +
+                       "\n// Call done() when you're finished sending messages." +
+                       "\n// done(); or done(err);"
+            },
             maxDuration: {
                 value: '15000',
                 validate: function(v) {
