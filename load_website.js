@@ -43,15 +43,36 @@ module.exports = function(RED) {
                     launchConfig.userDataDir = userDataDir;
                 }
 
+                let loaded = false;
+                function waitForLoaded() {
+                    return new Promise(resolve => {
+                        if (loaded) {
+                            resolve();
+                        } else {
+                            setTimeout(() => {
+                                node.debug('waited for 15 seconds for loaded event');
+                                resolve();
+                            }, 15000);
+                        }
+                    });
+                }
+
                 const browser = await puppeteer.launch(launchConfig);
                 openedBrowsers[msg._msgid] = browser;
                 const page = await browser.newPage();
-                const waitUntil = ['load'];
+                page.on('load', () => {
+                    node.debug('loaded');
+                    loaded = true;
+                });
+                // Not waiting for 'load' event to prevent getting stuck if a
+                // page is badly coded and fails to load certain resources.
+                const waitUntil = ['domcontentloaded'];
                 let userAgent = await browser.userAgent();
                 userAgent = userAgent.replace(' Raspbian', '');
                 userAgent = userAgent.replace('HeadlessChrome', 'Chrome');
                 page.setUserAgent(userAgent);
                 await page.goto(url, { waitUntil: waitUntil });
+                await waitForLoaded();
                 if (additionalDelayMs >= 1) {
                     await page.waitFor(additionalDelayMs);
                 }

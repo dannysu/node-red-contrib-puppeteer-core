@@ -49,13 +49,13 @@ module.exports = function(RED) {
         node.url = n.url;
         node.config = RED.nodes.getNode(n.config);
         node.func = n.func;
-        node.maxDuration = parseInt(n.maxDuration || '15000');
+        node.maxDuration = parseInt(n.maxDuration || '30000');
 
         if (n.userDataDir) {
             node.userDataDir = RED.util.evaluateNodeProperty(n.userDataDir.value, n.userDataDir.input_type, node);
         }
 
-        const functionText = "(async (msg, page, __send__, __done__) => {\n" +
+        const functionText = "(async (msg, page, waitForLoaded, __send__, __done__) => {\n" +
                              "    const __msgid__ = msg._msgid;\n" +
                              "    const node = {\n" +
                              "        id: __node__.id,\n" +
@@ -71,7 +71,7 @@ module.exports = function(RED) {
                              "        done: __done__\n" +
                              "    };\n" +
                                   node.func + "\n" +
-                             "})(msg, page, send, done)\n" +
+                             "})(msg, page, waitForLoaded, send, done)\n" +
                              "    .catch(done);";
 
         const sandbox = {
@@ -272,16 +272,37 @@ module.exports = function(RED) {
                     defaultViewport: {
                         width: 1920,
                         height: 1080
-                    }
+                    },
+                    timeout: node.maxDuration
                 };
                 if (node.userDataDir) {
                     launchConfig.userDataDir = userDataDir;
                 }
 
+                let loaded = false;
+                function waitForLoaded() {
+                    return new Promise(resolve => {
+                        if (loaded) {
+                            resolve();
+                        } else {
+                            setTimeout(() => {
+                                node.debug('waited for 15 seconds for loaded event');
+                                resolve();
+                            }, 15000);
+                        }
+                    });
+                }
+
                 const browser = await puppeteer.launch(launchConfig);
                 openedBrowsers[msg._msgid] = browser;
                 const page = await browser.newPage();
-                const waitUntil = ['load'];
+                page.on('load', () => {
+                    node.debug('loaded');
+                    loaded = true;
+                });
+                // Not waiting for 'load' event to prevent getting stuck if a
+                // page is badly coded and fails to load certain resources.
+                const waitUntil = ['domcontentloaded'];
                 let userAgent = await browser.userAgent();
                 userAgent = userAgent.replace(' Raspbian', '');
                 userAgent = userAgent.replace('HeadlessChrome', 'Chrome');
@@ -292,6 +313,7 @@ module.exports = function(RED) {
                 context.send = send;
                 context.page = page;
                 context.done = done;
+                context.waitForLoaded = waitForLoaded;
 
                 try {
                     node.script.runInContext(context);
