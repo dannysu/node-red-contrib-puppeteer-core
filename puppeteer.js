@@ -221,7 +221,7 @@ module.exports = function(RED) {
             node.error(err);
         }
 
-        let openedBrowser = null;
+        const openedBrowsers = {};
 
         node.on('input', function(msg, send, doneFn) {
             const url = node.url || msg.url;
@@ -242,9 +242,9 @@ module.exports = function(RED) {
                     clearTimeout(waitForExecutionTimer);
                     waitForExecutionTimer = null;
                 }
-                if (openedBrowser) {
-                    browserClosePromise = openedBrowser.close().finally(() => {
-                        openedBrowser = null;
+                if (openedBrowsers[msg._msgid]) {
+                    browserClosePromise = openedBrowsers[msg._msgid].close().finally(() => {
+                        delete openedBrowsers[msg._msgid];
                         doneFn(err);
                         if (resolveFn) {
                             resolveFn();
@@ -279,7 +279,7 @@ module.exports = function(RED) {
                 }
 
                 const browser = await puppeteer.launch(launchConfig);
-                openedBrowser = browser;
+                openedBrowsers[msg._msgid] = browser;
                 const page = await browser.newPage();
                 const waitUntil = ['load'];
                 let userAgent = await browser.userAgent();
@@ -340,22 +340,33 @@ module.exports = function(RED) {
             })().catch(e => {
                 node.debug('error processing ' + url);
                 node.debug(e);
-                if (openedBrowser) {
-                    openedBrowser.close().then(() => {
-                        openedBrowser = null;
+                if (openedBrowsers[msg._msgid]) {
+                    openedBrowsers[msg._msgid].close().then(() => {
+                        delete openedBrowsers[msg._msgid];
                     });
                 }
             }).finally(_ => node.config.releaseInstance());
         });
 
-        node.on('close', function(done) {
-            if (openedBrowser) {
-                openedBrowser.close().then(() => {
-                    openedBrowser = null;
-                }).finally(done);
+        function closeOpenBrowsers(done) {
+            if (Object.keys(openedBrowsers).length) {
+                const key = Object.keys(openedBrowsers)[0];
+                openedBrowsers[key].close().then(() => {
+                    delete openedBrowsers[key];
+                }).catch(e => {
+                    node.debug('error closing browser');
+                    node.debug(e);
+                }).finally(() => {
+                    closeOpenBrowsers(done);
+                });
             } else {
                 done();
             }
+        }
+
+        node.on('close', function(done) {
+            node.debug('close');
+            closeOpenBrowsers(done);
         });
     }
 

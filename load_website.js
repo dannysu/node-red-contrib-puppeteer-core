@@ -16,7 +16,7 @@ module.exports = function(RED) {
             node.userDataDir = RED.util.evaluateNodeProperty(n.userDataDir.value, n.userDataDir.input_type, node);
         }
 
-        let openedBrowser = null;
+        const openedBrowsers = {};
 
         node.on('input', function(msg, send, done) {
             const url = node.url || msg.url;
@@ -44,7 +44,7 @@ module.exports = function(RED) {
                 }
 
                 const browser = await puppeteer.launch(launchConfig);
-                openedBrowser = browser;
+                openedBrowsers[msg._msgid] = browser;
                 const page = await browser.newPage();
                 const waitUntil = ['load'];
                 let userAgent = await browser.userAgent();
@@ -65,29 +65,40 @@ module.exports = function(RED) {
                 send(msg);
 
                 await browser.close();
-                openedBrowser = null;
+                delete openedBrowsers[msg._msgid];
 
                 // Signal to Node-RED that handling for the msg is done
                 done();
             })().catch(e => {
                 node.debug('error processing ' + url);
                 node.debug(e);
-                if (openedBrowser) {
-                    openedBrowser.close().then(() => {
-                        openedBrowser = null;
+                if (openedBrowsers[msg._msgid]) {
+                    openedBrowsers[msg._msgid].close().then(() => {
+                        delete openedBrowsers[msg._msgid];
                     });
                 }
             }).finally(_ => node.config.releaseInstance());
         });
 
-        node.on('close', function(done) {
-            if (openedBrowser) {
-                openedBrowser.close().then(() => {
-                    openedBrowser = null;
-                }).finally(done);
+        function closeOpenBrowsers(done) {
+            if (Object.keys(openedBrowsers).length) {
+                const key = Object.keys(openedBrowsers)[0];
+                openedBrowsers[key].close().then(() => {
+                    delete openedBrowsers[key];
+                }).catch(e => {
+                    node.debug('error closing browser');
+                    node.debug(e);
+                }).finally(() => {
+                    closeOpenBrowsers(done);
+                });
             } else {
                 done();
             }
+        }
+
+        node.on('close', function(done) {
+            node.debug('close');
+            closeOpenBrowsers(done);
         });
     }
 
