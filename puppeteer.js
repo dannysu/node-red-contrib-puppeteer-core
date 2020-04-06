@@ -337,12 +337,22 @@ module.exports = function(RED) {
                 }
 
                 await browserClosePromise;
-            })().finally(_ => node.config.releaseInstance());
+            })().catch(e => {
+                node.debug('error processing ' + url);
+                node.debug(e);
+                if (openedBrowser) {
+                    openedBrowser.close().then(() => {
+                        openedBrowser = null;
+                    });
+                }
+            }).finally(_ => node.config.releaseInstance());
         });
 
         node.on('close', function(done) {
             if (openedBrowser) {
-                openedBrowser.close().finally(done);
+                openedBrowser.close().then(() => {
+                    openedBrowser = null;
+                }).finally(done);
             } else {
                 done();
             }
