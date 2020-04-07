@@ -2,8 +2,18 @@
   "name": "node-red-contrib-puppeteer-core",
   "version": "1.1.0",
   "description": "A Node-RED node for using puppeteer",
+  "scripts": {
+    "test": "mocha \"test/**/*_spec.js\""
+  },
   "dependencies": {
     "puppeteer-core": "^2.1.1"
+  },
+  "devDependencies": {
+    "mocha": "^7.1.1",
+    "node-red": "^1.0.4",
+    "node-red-node-test-helper": "^0.2.3",
+    "should-sinon": "0.0.6",
+    "sinon": "^9.0.1"
   },
   "license": "Apache 2.0",
   "keywords": [

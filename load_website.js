@@ -12,6 +12,10 @@ module.exports = function(RED) {
         node.additionalDelayMs = n.additionalDelayMs;
         node.additionalSelectorWait = n.additionalSelectorWait;
 
+        // To enable testing
+        node.puppeteer = puppeteer;
+        node.maxWaitForLoad = 15000;
+
         if (n.userDataDir) {
             node.userDataDir = RED.util.evaluateNodeProperty(n.userDataDir.value, n.userDataDir.input_type, node);
         }
@@ -39,7 +43,7 @@ module.exports = function(RED) {
                         height: 1080
                     }
                 };
-                if (node.userDataDir) {
+                if (userDataDir) {
                     launchConfig.userDataDir = userDataDir;
                 }
 
@@ -52,12 +56,12 @@ module.exports = function(RED) {
                             setTimeout(() => {
                                 node.debug('waited for 15 seconds for loaded event');
                                 resolve();
-                            }, 15000);
+                            }, node.maxWaitForLoad);
                         }
                     });
                 }
 
-                const browser = await puppeteer.launch(launchConfig);
+                const browser = await node.puppeteer.launch(launchConfig);
                 openedBrowsers[msg._msgid] = browser;
                 const page = await browser.newPage();
                 page.on('load', () => {
@@ -71,6 +75,7 @@ module.exports = function(RED) {
                 userAgent = userAgent.replace(' Raspbian', '');
                 userAgent = userAgent.replace('HeadlessChrome', 'Chrome');
                 page.setUserAgent(userAgent);
+                node.emit('test:input:load');
                 await page.goto(url, { waitUntil: waitUntil });
                 await waitForLoaded();
                 if (additionalDelayMs >= 1) {
@@ -89,6 +94,7 @@ module.exports = function(RED) {
                 delete openedBrowsers[msg._msgid];
 
                 // Signal to Node-RED that handling for the msg is done
+                node.emit('test:input:done');
                 done();
             })().catch(e => {
                 node.debug('error processing ' + url);
@@ -113,6 +119,7 @@ module.exports = function(RED) {
                     closeOpenBrowsers(done);
                 });
             } else {
+                node.emit('test:close:done');
                 done();
             }
         }
