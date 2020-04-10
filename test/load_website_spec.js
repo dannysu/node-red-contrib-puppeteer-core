@@ -124,7 +124,7 @@ describe('load_website Node', function() {
         });
     });
 
-    it('close all existing browsers upon close', function(done) {
+    it('close all existing browsers upon unload', function(done) {
         const flow = [
             {
                 id: 'n1',
