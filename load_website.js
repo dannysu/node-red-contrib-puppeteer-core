@@ -113,8 +113,9 @@ module.exports = function(RED) {
                 openedBrowsers[key].close().then(() => {
                     delete openedBrowsers[key];
                 }).catch(e => {
-                    node.debug('error closing browser');
+                    node.debug('error closing browser: ' + key);
                     node.debug(e);
+                    delete openedBrowsers[key];
                 }).finally(() => {
                     closeOpenBrowsers(done);
                 });

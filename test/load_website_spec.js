@@ -194,4 +194,75 @@ describe('load_website Node', function() {
             });
         });
     });
+
+    it('close all existing browsers upon unload even through errors', function(done) {
+        const flow = [
+            {
+                id: 'n1',
+                type: 'pptr load website',
+                name: 'test',
+                config: 'c1'
+            },
+            {
+                id: 'c1',
+                type: 'pptr config',
+                name: 'test config',
+                executablePath: '/test',
+                semaphoreCount: 2
+            }
+        ];
+        helper.load([loadWebsiteNode, configNode], flow, function() {
+            const n1 = helper.getNode('n1');
+            const mockPage1 = {
+                setUserAgent: sinon.stub(),
+                goto: sinon.stub().resolves(),
+                waitFor: sinon.stub().resolves(),
+                content: sinon.stub().resolves(),
+                on: sinon.stub()
+            };
+            const mockPage2 = {
+                setUserAgent: sinon.stub(),
+                goto: sinon.stub().resolves(),
+                waitFor: sinon.stub().resolves(),
+                content: sinon.stub().resolves(),
+                on: sinon.stub()
+            };
+            const mockBrowser1 = {
+                newPage: sinon.stub().resolves(mockPage1),
+                userAgent: sinon.stub().resolves('test user agent'),
+                close: sinon.stub().rejects()
+            };
+            const mockBrowser2 = {
+                newPage: sinon.stub().resolves(mockPage2),
+                userAgent: sinon.stub().resolves('test user agent'),
+                close: sinon.stub().resolves()
+            };
+            const mockPuppeteer = {
+                launch: sinon.stub()
+            };
+            mockPuppeteer.launch.onCall(0).resolves(mockBrowser1);
+            mockPuppeteer.launch.onCall(1).resolves(mockBrowser2);
+            n1.puppeteer = mockPuppeteer;
+            n1.receive({
+                _msgid: 'm1',
+                url: 'https://number1.com'
+            });
+            n1.receive({
+                _msgid: 'm2',
+                url: 'https://number2.com'
+            });
+            let loadCount = 0;
+            n1.on('test:input:load', () => {
+                loadCount++;
+                if (loadCount === 2) {
+                    helper.unload();
+                }
+            });
+            n1.on('test:close:done', () => {
+                mockBrowser1.close.should.be.calledOnce();
+                mockBrowser2.close.should.be.calledOnce();
+                done();
+            });
+        });
+    });
 });
