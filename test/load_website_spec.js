@@ -265,4 +265,54 @@ describe('load_website Node', function() {
             });
         });
     });
+
+    it('handles error during processing', function(done) {
+        const flow = [
+            {
+                id: 'n1',
+                type: 'pptr load website',
+                name: 'test',
+                config: 'c1'
+            },
+            {
+                id: 'c1',
+                type: 'pptr config',
+                name: 'test config',
+                executablePath: '/test',
+                semaphoreCount: 1
+            }
+        ];
+        helper.load([loadWebsiteNode, configNode], flow, function() {
+            const c1 = helper.getNode('c1');
+            const n1 = helper.getNode('n1');
+            const mockPage = {
+                setUserAgent: sinon.stub(),
+                goto: sinon.stub().rejects(),
+                waitFor: sinon.stub().resolves(),
+                content: sinon.stub().resolves(),
+                on: sinon.stub()
+            };
+            const mockBrowser = {
+                newPage: sinon.stub().resolves(mockPage),
+                userAgent: sinon.stub().resolves('test user agent'),
+                close: sinon.stub().resolves()
+            };
+            const mockPuppeteer = {
+                launch: sinon.stub()
+            };
+            mockPuppeteer.launch.resolves(mockBrowser);
+            n1.puppeteer = mockPuppeteer;
+            n1.receive({
+                _msgid: 'm1',
+                url: 'https://number1.com'
+            });
+            n1.on('test:input:done', () => {
+                mockBrowser.close.should.be.calledOnce();
+            });
+            n1.on('test:input:finally', () => {
+                c1.availableInstance.should.be.eql(1);
+                done();
+            });
+        });
+    });
 });

@@ -22,7 +22,12 @@ module.exports = function(RED) {
 
         const openedBrowsers = {};
 
-        node.on('input', function(msg, send, done) {
+        node.on('input', function(msg, send, doneFn) {
+            function done(err) {
+                node.emit('test:input:done');
+                doneFn(err);
+            }
+
             const url = node.url || msg.url;
             if (!url) {
                 const err = new Error('A URL is required');
@@ -30,11 +35,13 @@ module.exports = function(RED) {
                 return;
             }
 
+            let instancePromise = null;
             const additionalDelayMs = parseInt(node.additionalDelayMs || msg.additionalDelayMs || '-1');
             const additionalSelectorWait = node.additionalSelectorWait || msg.additionalSelectorWait;
             const userDataDir = node.userDataDir || msg.userDataDir;
             (async () => {
-                await node.config.takeInstance();
+                instancePromise = node.config.takeInstance();
+                await instancePromise;
 
                 const launchConfig = {
                     executablePath: node.config.executablePath,
@@ -94,29 +101,35 @@ module.exports = function(RED) {
                 delete openedBrowsers[msg._msgid];
 
                 // Signal to Node-RED that handling for the msg is done
-                node.emit('test:input:done');
                 done();
             })().catch(e => {
                 node.debug('error processing ' + url);
                 node.debug(e);
                 if (openedBrowsers[msg._msgid]) {
-                    openedBrowsers[msg._msgid].close().then(() => {
+                    openedBrowsers[msg._msgid].close().finally(() => {
                         delete openedBrowsers[msg._msgid];
+                        done(e);
                     });
+                } else {
+                    done(e);
                 }
-            }).finally(_ => node.config.releaseInstance());
+            }).finally(_ => {
+                if (instancePromise) {
+                    instancePromise = null;
+                    node.config.releaseInstance()
+                }
+                node.emit('test:input:finally');
+            });
         });
 
         function closeOpenBrowsers(done) {
             if (Object.keys(openedBrowsers).length) {
                 const key = Object.keys(openedBrowsers)[0];
-                openedBrowsers[key].close().then(() => {
-                    delete openedBrowsers[key];
-                }).catch(e => {
+                openedBrowsers[key].close().catch(e => {
                     node.debug('error closing browser: ' + key);
                     node.debug(e);
-                    delete openedBrowsers[key];
                 }).finally(() => {
+                    delete openedBrowsers[key];
                     closeOpenBrowsers(done);
                 });
             } else {
