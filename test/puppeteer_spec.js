@@ -3,6 +3,7 @@ const sinon = require('sinon');
 const should = require('should');
 require('should-sinon');
 const helper = require('node-red-node-test-helper');
+const EventEmitter = require('events');
 const puppeteerNode = require('../puppeteer.js');
 const configNode = require('../config.js');
 
@@ -76,7 +77,7 @@ describe('puppeteer Node', function() {
                 type: 'puppeteer',
                 name: 'test',
                 config: 'c1',
-                func: 'done();'
+                func: 'await waitForLoaded(); done();'
             },
             {
                 id: 'c1',
@@ -88,12 +89,10 @@ describe('puppeteer Node', function() {
         ];
         helper.load([puppeteerNode, configNode], flow, function() {
             const n1 = helper.getNode('n1');
-            n1.maxDuration = 1;
-            const mockPage = {
-                setUserAgent: sinon.stub(),
-                goto: sinon.stub().resolves(),
-                on: sinon.stub()
-            };
+            class MockPage extends EventEmitter {}
+            const mockPage = new MockPage();
+            mockPage.setUserAgent = sinon.stub();
+            mockPage.goto = sinon.stub().resolves();
             const mockBrowser = {
                 newPage: sinon.stub().resolves(mockPage),
                 userAgent: sinon.stub().resolves('test user agent'),
@@ -108,7 +107,17 @@ describe('puppeteer Node', function() {
                 url: 'https://dannysu.com',
                 userDataDir: '/test'
             });
+            let loaded = false;
+            n1.on('test:input:loaded', () => {
+                loaded = true;
+            });
+            n1.on('test:input:load', () => {
+                setTimeout(function() {
+                    mockPage.emit('load');
+                }, 20);
+            });
             n1.on('test:input:done', () => {
+                loaded.should.be.true();
                 mockPuppeteer.launch.should.be.calledWith(sinon.match.has('userDataDir', '/test'));
                 mockPage.goto.should.be.calledWith('https://dannysu.com', sinon.match.any);
                 mockBrowser.close.should.be.calledOnce();

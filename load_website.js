@@ -55,14 +55,20 @@ module.exports = function(RED) {
                 }
 
                 let loaded = false;
+                let waitForLoadedResolveFn = null;
+                let waitForLoadedTimer = null;
                 function waitForLoaded() {
                     return new Promise(resolve => {
                         if (loaded) {
                             resolve();
                         } else {
-                            setTimeout(() => {
+                            waitForLoadedResolveFn = resolve;
+                            waitForLoadedTimer = setTimeout(() => {
                                 node.debug('waited for 15 seconds for loaded event');
-                                resolve();
+                                if (waitForLoadedResolveFn) {
+                                    waitForLoadedResolveFn();
+                                    waitForLoadedResolveFn = null;
+                                }
                             }, node.maxWaitForLoad);
                         }
                     });
@@ -72,8 +78,17 @@ module.exports = function(RED) {
                 openedBrowsers[msg._msgid] = browser;
                 const page = await browser.newPage();
                 page.on('load', () => {
+                    node.emit('test:input:loaded');
                     node.debug('loaded');
                     loaded = true;
+                    if (waitForLoadedTimer) {
+                        clearTimeout(waitForLoadedTimer);
+                        waitForLoadedTimer = null;
+                    }
+                    if (waitForLoadedResolveFn) {
+                        waitForLoadedResolveFn();
+                        waitForLoadedResolveFn = null;
+                    }
                 });
                 // Not waiting for 'load' event to prevent getting stuck if a
                 // page is badly coded and fails to load certain resources.
