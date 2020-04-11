@@ -1,8 +1,8 @@
-'use strict';
-
-const puppeteer = require('puppeteer-core');
 
 module.exports = function(RED) {
+    'use strict';
+    const puppeteer = require('puppeteer-core');
+
     function PuppeteerLoadWebsiteNode(n) {
         RED.nodes.createNode(this, n);
 
@@ -12,13 +12,13 @@ module.exports = function(RED) {
         node.additionalDelayMs = n.additionalDelayMs;
         node.additionalSelectorWait = n.additionalSelectorWait;
 
-        // To enable testing
-        node.puppeteer = puppeteer;
-        node.maxWaitForLoad = 15000;
-
         if (n.userDataDir) {
             node.userDataDir = RED.util.evaluateNodeProperty(n.userDataDir.value, n.userDataDir.input_type, node);
         }
+
+        // To enable testing
+        node.puppeteer = puppeteer;
+        node.maxWaitForLoad = 15000;
 
         const openedBrowsers = {};
 

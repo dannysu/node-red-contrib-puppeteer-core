@@ -46,6 +46,8 @@ module.exports = function(RED) {
         RED.nodes.createNode(this, n);
 
         const node = this;
+        node.outstandingTimers = [];
+        node.outstandingIntervals = [];
         node.url = n.url;
         node.config = RED.nodes.getNode(n.config);
         node.func = n.func;
@@ -54,6 +56,9 @@ module.exports = function(RED) {
         if (n.userDataDir) {
             node.userDataDir = RED.util.evaluateNodeProperty(n.userDataDir.value, n.userDataDir.input_type, node);
         }
+
+        // To enable testing
+        node.puppeteer = puppeteer;
 
         const functionText = "(async (msg, page, waitForLoaded, __send__, __done__) => {\n" +
                              "    const __msgid__ = msg._msgid;\n" +
@@ -224,35 +229,9 @@ module.exports = function(RED) {
         const openedBrowsers = {};
 
         node.on('input', function(msg, send, doneFn) {
-            const url = node.url || msg.url;
-            if (!url) {
-                const err = new Error('A URL is required');
-                done(err);
-                return;
-            }
-
-            const userDataDir = node.userDataDir || msg.userDataDir;
-
             let resolveFn = null;
 
-            let browserClosePromise = null;
             let waitForExecutionTimer = null;
-            function done(err) {
-                if (waitForExecutionTimer) {
-                    clearTimeout(waitForExecutionTimer);
-                    waitForExecutionTimer = null;
-                }
-                if (openedBrowsers[msg._msgid]) {
-                    browserClosePromise = openedBrowsers[msg._msgid].close().finally(() => {
-                        delete openedBrowsers[msg._msgid];
-                        doneFn(err);
-                        if (resolveFn) {
-                            resolveFn();
-                        }
-                    });
-                }
-            }
-
             function waitForExecution() {
                 return new Promise((resolve, reject) => {
                     resolveFn = resolve;
@@ -264,8 +243,43 @@ module.exports = function(RED) {
                 });
             }
 
+            function done(err) {
+                if (waitForExecutionTimer) {
+                    clearTimeout(waitForExecutionTimer);
+                    waitForExecutionTimer = null;
+                }
+                if (openedBrowsers[msg._msgid]) {
+                    openedBrowsers[msg._msgid].close().finally(() => {
+                        delete openedBrowsers[msg._msgid];
+                        if (resolveFn) {
+                            resolveFn();
+                            resolveFn = null;
+                        }
+                        node.emit('test:input:done');
+                        doneFn(err);
+                    });
+                } else if (resolveFn) {
+                    if (resolveFn) {
+                        resolveFn();
+                        resolveFn = null;
+                    }
+                    node.emit('test:input:done');
+                    doneFn(err);
+                }
+            }
+
+            const url = node.url || msg.url;
+            if (!url) {
+                const err = new Error('A URL is required');
+                done(err);
+                return;
+            }
+
+            let instancePromise = null;
+            const userDataDir = node.userDataDir || msg.userDataDir;
             (async () => {
-                await node.config.takeInstance();
+                instancePromise = node.config.takeInstance();
+                await instancePromise;
 
                 const launchConfig = {
                     executablePath: node.config.executablePath,
@@ -275,7 +289,7 @@ module.exports = function(RED) {
                     },
                     timeout: node.maxDuration
                 };
-                if (node.userDataDir) {
+                if (userDataDir) {
                     launchConfig.userDataDir = userDataDir;
                 }
 
@@ -293,7 +307,7 @@ module.exports = function(RED) {
                     });
                 }
 
-                const browser = await puppeteer.launch(launchConfig);
+                const browser = await node.puppeteer.launch(launchConfig);
                 openedBrowsers[msg._msgid] = browser;
                 const page = await browser.newPage();
                 page.on('load', () => {
@@ -307,6 +321,7 @@ module.exports = function(RED) {
                 userAgent = userAgent.replace(' Raspbian', '');
                 userAgent = userAgent.replace('HeadlessChrome', 'Chrome');
                 page.setUserAgent(userAgent);
+                node.emit('test:input:load');
                 await page.goto(url, { waitUntil: waitUntil });
 
                 context.msg = msg;
@@ -316,8 +331,9 @@ module.exports = function(RED) {
                 context.waitForLoaded = waitForLoaded;
 
                 try {
+                    const executionPromise = waitForExecution();
                     node.script.runInContext(context);
-                    await waitForExecution();
+                    await executionPromise;
                 } catch(err) {
                     if ((typeof err === "object") && err.hasOwnProperty("stack")) {
                         //remove unwanted part
@@ -357,31 +373,38 @@ module.exports = function(RED) {
                         done(JSON.stringify(err));
                     }
                 }
-
-                await browserClosePromise;
             })().catch(e => {
                 node.debug('error processing ' + url);
                 node.debug(e);
                 if (openedBrowsers[msg._msgid]) {
-                    openedBrowsers[msg._msgid].close().then(() => {
+                    openedBrowsers[msg._msgid].close().finally(() => {
                         delete openedBrowsers[msg._msgid];
+                        done(e);
                     });
+                } else {
+                    done(e);
                 }
-            }).finally(_ => node.config.releaseInstance());
+            }).finally(_ => {
+                if (instancePromise) {
+                    instancePromise = null;
+                    node.config.releaseInstance()
+                }
+                node.emit('test:input:finally');
+            });
         });
 
         function closeOpenBrowsers(done) {
             if (Object.keys(openedBrowsers).length) {
                 const key = Object.keys(openedBrowsers)[0];
-                openedBrowsers[key].close().then(() => {
-                    delete openedBrowsers[key];
-                }).catch(e => {
-                    node.debug('error closing browser');
+                openedBrowsers[key].close().catch(e => {
+                    node.debug('error closing browser: ' + key);
                     node.debug(e);
                 }).finally(() => {
+                    delete openedBrowsers[key];
                     closeOpenBrowsers(done);
                 });
             } else {
+                node.emit('test:close:done');
                 done();
             }
         }
