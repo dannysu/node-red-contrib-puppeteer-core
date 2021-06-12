@@ -1,12 +1,12 @@
 {
   "name": "node-red-contrib-puppeteer-core",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A Node-RED node for using puppeteer",
   "scripts": {
     "test": "mocha \"test/**/*_spec.js\""
   },
   "dependencies": {
-    "puppeteer-core": "^2.1.1"
+    "puppeteer-core": "^10.0.0"
   },
   "devDependencies": {
     "mocha": "^7.1.1",
